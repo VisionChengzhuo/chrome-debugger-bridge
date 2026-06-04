@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chrome Debugger Bridge"
+  short_description: "Real Chrome automation without runtime Allow popups"
+  default_prompt: "Use $chrome-debugger-bridge to control my existing Chrome session through the installed extension bridge without runtime Allow prompts."

@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Chrome Debugger Bridge",
+  "description": "Connect Codex to the current real Chrome session without remote-debugging Allow popups.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "debugger",
+    "tabs",
+    "scripting",
+    "storage",
+    "webNavigation",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*"
+  },
+  "action": {
+    "default_title": "Chrome Debugger Bridge",
+    "default_popup": "popup.html"
+  }
+}

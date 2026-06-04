@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Chrome Debugger Bridge</title>
+    <style>
+      body {
+        margin: 0;
+        min-width: 320px;
+        font: 13px/1.4 "Segoe UI", sans-serif;
+        color: #1f2937;
+        background: linear-gradient(180deg, #f7fafc 0%, #edf2f7 100%);
+      }
+
+      .wrap {
+        padding: 14px;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: 15px;
+      }
+
+      .card {
+        background: #ffffff;
+        border: 1px solid #dbe2ea;
+        border-radius: 10px;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+      }
+
+      .row {
+        margin: 6px 0;
+      }
+
+      .label {
+        color: #64748b;
+      }
+
+      .mono {
+        font-family: Consolas, monospace;
+        word-break: break-all;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 10px;
+        background: #0f172a;
+        color: white;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+
+      #message {
+        margin-top: 10px;
+        color: #334155;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Chrome Debugger Bridge</h1>
+      <div class="card">
+        <div class="row"><span class="label">Bridge URL:</span> <span id="bridge" class="mono"></span></div>
+        <div class="row"><span class="label">Extension ID:</span> <span id="extensionId" class="mono"></span></div>
+        <div class="row"><span class="label">Attached tabs:</span> <span id="attachedCount"></span></div>
+        <div class="row"><span class="label">Controllable tabs:</span> <span id="controllableTabs"></span></div>
+        <div class="row"><span class="label">Offscreen bridge loop:</span> <span id="offscreenReady"></span></div>
+      </div>
+      <div class="actions">
+        <button id="refresh">Refresh</button>
+        <button id="wake" class="secondary">Wake Bridge</button>
+      </div>
+      <div id="message"></div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+  </html>
