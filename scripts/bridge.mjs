@@ -10,7 +10,7 @@ import {
   openSync,
 } from 'fs';
 import { homedir } from 'os';
-import { resolve } from 'path';
+import { isAbsolute, resolve } from 'path';
 import { spawn } from 'child_process';
 
 const HOST = '127.0.0.1';
@@ -149,6 +149,11 @@ function normalizeTabId(raw) {
 
 function defaultShotPath(tabId) {
   return resolve(RUNTIME_DIR, `screenshot-${tabId}.png`);
+}
+
+function normalizeOutputPath(raw) {
+  if (!raw) return null;
+  return isAbsolute(raw) ? raw : resolve(process.cwd(), raw);
 }
 
 function finalizeJobResult(job, payload) {
@@ -558,7 +563,7 @@ function parseCommand(argv) {
       if (!rest.length) throw new Error('URL required');
       return { command, payload: { tabId, url: rest[0] } };
     case 'shot':
-      return { command, payload: { tabId, file: rest[0] || null } };
+      return { command, payload: { tabId, file: normalizeOutputPath(rest[0]) } };
     default:
       throw new Error(`Unknown command: ${command}`);
   }

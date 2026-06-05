@@ -277,6 +277,7 @@ async function executeCommand(command, payload = {}) {
           const el = document.querySelector(${JSON.stringify(payload.selector)});
           if (!el) return { ok: false, error: 'Element not found: ' + ${JSON.stringify(payload.selector)} };
           el.scrollIntoView({ block: 'center' });
+          if (typeof el.focus === 'function') el.focus({ preventScroll: true });
           el.click();
           return { ok: true, tag: el.tagName, text: el.textContent.trim().substring(0, 80) };
         })()
