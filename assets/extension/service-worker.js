@@ -51,21 +51,8 @@ async function ensureTabExists(tabId) {
   }
 }
 
-async function activateTab(tabId) {
-  const tab = await ensureTabExists(tabId);
-  try {
-    if (Number.isInteger(tab.windowId)) {
-      await chrome.windows.update(tab.windowId, { focused: true });
-    }
-  } catch {}
-  try {
-    await chrome.tabs.update(tabId, { active: true });
-  } catch {}
-  return tab;
-}
-
 async function ensureAttached(tabId) {
-  await activateTab(tabId);
+  await ensureTabExists(tabId);
   const key = tabKey(tabId);
   if (attachedTabs.has(key)) return;
 
@@ -299,6 +286,38 @@ async function executeCommand(command, payload = {}) {
       await ensureAttached(payload.tabId);
       await safeSendCommand(payload.tabId, 'Input.insertText', { text: payload.text || '' });
       return `Typed ${(payload.text || '').length} characters`;
+    case 'key': {
+      await ensureAttached(payload.tabId);
+      const key = payload.key || 'Enter';
+      if (key === 'Enter') {
+        await safeSendCommand(payload.tabId, 'Runtime.evaluate', {
+          expression: `(() => {
+            const textarea = document.querySelector("textarea.xterm-helper-textarea");
+            const target = textarea || document.activeElement || document.body;
+            if (textarea) textarea.focus();
+            const eventInit = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
+            for (const type of ["keydown", "keypress", "keyup"]) {
+              target.dispatchEvent(new KeyboardEvent(type, eventInit));
+            }
+            return true;
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+        return `Pressed ${key}`;
+      }
+      const keyInfo = key === 'Enter'
+        ? { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }
+        : {
+            key,
+            code: payload.code || (key.length === 1 && /[a-z]/i.test(key) ? `Key${key.toUpperCase()}` : key),
+            text: payload.text ?? (key.length === 1 ? key : undefined),
+            unmodifiedText: payload.text ?? (key.length === 1 ? key : undefined),
+          };
+      await safeSendCommand(payload.tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', ...keyInfo });
+      await safeSendCommand(payload.tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...keyInfo });
+      return `Pressed ${key}`;
+    }
     case 'nav': {
       await ensureAttached(payload.tabId);
       await safeSendCommand(payload.tabId, 'Page.enable');

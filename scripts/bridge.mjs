@@ -42,6 +42,7 @@ Usage: bridge.mjs <command> [args]
   html <tab> [selector]          Get HTML (page or CSS selector)
   click <tab> <selector>         Click an element by CSS selector
   type <tab> <text>              Insert text into the focused element
+  key <tab> <key>                Press a key in the focused page, e.g. Enter
   nav <tab> <url>                Navigate tab and wait for load complete
   shot <tab> [file]              Save a screenshot PNG locally
   stop [tab]                     Detach one tab, or stop the bridge if no tab is given
@@ -559,6 +560,9 @@ function parseCommand(argv) {
     case 'type':
       if (!rest.length) throw new Error('Text required');
       return { command, payload: { tabId, text: rest.join(' ') } };
+    case 'key':
+      if (!rest.length) throw new Error('Key required');
+      return { command, payload: { tabId, key: rest[0] } };
     case 'nav':
       if (!rest.length) throw new Error('URL required');
       return { command, payload: { tabId, url: rest[0] } };
