@@ -20,13 +20,10 @@ const COMMAND_TIMEOUT_MS = 35000;
 const POLL_TIMEOUT_MS = 4000;
 const EXTENSION_STALE_MS = 45000;
 const EXTENSION_BOOT_TIMEOUT_MS = 12000;
-const IS_WINDOWS = process.platform === 'win32';
 const IS_MAC = process.platform === 'darwin';
-const RUNTIME_DIR = IS_WINDOWS
-  ? resolve(process.env.LOCALAPPDATA || resolve(homedir(), 'AppData', 'Local'), 'chrome-debugger-bridge')
-  : process.env.XDG_RUNTIME_DIR
-    ? resolve(process.env.XDG_RUNTIME_DIR, 'chrome-debugger-bridge')
-    : resolve(homedir(), '.cache', 'chrome-debugger-bridge');
+const RUNTIME_DIR = process.env.XDG_RUNTIME_DIR
+  ? resolve(process.env.XDG_RUNTIME_DIR, 'chrome-debugger-bridge')
+  : resolve(homedir(), '.cache', 'chrome-debugger-bridge');
 const LOG_FILE = resolve(RUNTIME_DIR, 'bridge.log');
 const STATE_FILE = resolve(RUNTIME_DIR, 'extension-state.json');
 
@@ -474,14 +471,6 @@ function findChromeExecutable() {
     candidates.push(
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       resolve(homedir(), 'Applications', 'Google Chrome.app', 'Contents', 'MacOS', 'Google Chrome'),
-    );
-  }
-
-  if (IS_WINDOWS) {
-    candidates.push(
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-      resolve(process.env.LOCALAPPDATA || resolve(homedir(), 'AppData', 'Local'), 'Google', 'Chrome', 'Application', 'chrome.exe'),
     );
   }
 

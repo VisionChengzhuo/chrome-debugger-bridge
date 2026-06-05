@@ -55,7 +55,7 @@ scripts/bridge.mjs doctor
 - `shot` saves PNG output locally and prints the device pixel ratio for coordinate conversions.
 - `chrome://`, `chrome-extension://`, and `devtools://` pages are intentionally skipped from `list`.
 - On macOS, the CLI looks for Chrome at `CHROME_PATH`, `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, and `~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
-- On macOS and other non-Windows systems, logs, saved extension state, and default screenshots are stored in `$XDG_RUNTIME_DIR/chrome-debugger-bridge` when `XDG_RUNTIME_DIR` is set, otherwise `~/.cache/chrome-debugger-bridge`.
+- On macOS, logs, saved extension state, and default screenshots are stored in `$XDG_RUNTIME_DIR/chrome-debugger-bridge` when `XDG_RUNTIME_DIR` is set, otherwise `~/.cache/chrome-debugger-bridge`.
 
 ## Resources
 
