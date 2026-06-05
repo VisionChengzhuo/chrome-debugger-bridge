@@ -277,14 +277,22 @@ async function executeCommand(command, payload = {}) {
           const el = document.querySelector(${JSON.stringify(payload.selector)});
           if (!el) return { ok: false, error: 'Element not found: ' + ${JSON.stringify(payload.selector)} };
           el.scrollIntoView({ block: 'center' });
-          if (typeof el.focus === 'function') el.focus({ preventScroll: true });
-          el.click();
-          return { ok: true, tag: el.tagName, text: el.textContent.trim().substring(0, 80) };
+          const rect = el.getBoundingClientRect();
+          return {
+            ok: true,
+            tag: el.tagName,
+            text: el.textContent.trim().substring(0, 80),
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+          };
         })()
       `;
       const raw = await evaluateInPage(payload.tabId, expression);
       const parsed = JSON.parse(raw);
       if (!parsed.ok) throw createError('EXECUTION_FAILED', parsed.error);
+      await safeSendCommand(payload.tabId, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: parsed.x, y: parsed.y, button: 'none' });
+      await safeSendCommand(payload.tabId, 'Input.dispatchMouseEvent', { type: 'mousePressed', x: parsed.x, y: parsed.y, button: 'left', clickCount: 1 });
+      await safeSendCommand(payload.tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: parsed.x, y: parsed.y, button: 'left', clickCount: 1 });
       return `Clicked <${parsed.tag}> "${parsed.text}"`;
     }
     case 'type':
