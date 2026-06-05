@@ -44,6 +44,13 @@ Restart Codex App after installing or updating the skill so the app reloads the 
 - Chrome is discovered from `CHROME_PATH`, `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, then `~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
 - If Chrome is installed somewhere else, set `CHROME_PATH` to the executable path before running the CLI.
 - After the extension has connected once, the CLI saves its extension ID. If Chrome is closed and reopened, `health` and normal commands try to wake the extension by opening `chrome-extension://<extension-id>/offscreen.html` in the discovered Chrome executable.
+- If the first `health` after installation still says `Extension connected: no`, copy the extension ID shown on `chrome://extensions` and run:
+
+```bash
+CHROME_DEBUGGER_BRIDGE_EXTENSION_ID=<extension-id> node <skill-dir>/scripts/bridge.mjs health
+```
+
+Once that succeeds, the bridge saves the extension ID for later automatic wake-ups.
 
 For a fuller diagnostic snapshot, run:
 

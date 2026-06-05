@@ -502,7 +502,7 @@ async function waitForExtensionConnected(timeoutMs = EXTENSION_BOOT_TIMEOUT_MS) 
 
 async function bootstrapExtensionIfPossible() {
   const state = readPersistedExtensionState();
-  const extensionId = state.extensionId;
+  const extensionId = state.extensionId || process.env.CHROME_DEBUGGER_BRIDGE_EXTENSION_ID;
   if (!extensionId) return false;
 
   const chromePath = findChromeExecutable();
