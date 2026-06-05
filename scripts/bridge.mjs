@@ -8,7 +8,6 @@ import {
   readFileSync,
   existsSync,
   openSync,
-  unlinkSync,
 } from 'fs';
 import { homedir } from 'os';
 import { resolve } from 'path';
@@ -22,6 +21,7 @@ const POLL_TIMEOUT_MS = 4000;
 const EXTENSION_STALE_MS = 45000;
 const EXTENSION_BOOT_TIMEOUT_MS = 12000;
 const IS_WINDOWS = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
 const RUNTIME_DIR = IS_WINDOWS
   ? resolve(process.env.LOCALAPPDATA || resolve(homedir(), 'AppData', 'Local'), 'chrome-debugger-bridge')
   : process.env.XDG_RUNTIME_DIR
@@ -49,6 +49,7 @@ Usage: bridge.mjs <command> [args]
   shot <tab> [file]              Save a screenshot PNG locally
   stop [tab]                     Detach one tab, or stop the bridge if no tab is given
   health                         Show bridge and extension status
+  doctor                         Show local runtime, Chrome, bridge, and extension diagnostics
 `;
 
 function errorPayload(code, message, details = undefined) {
@@ -467,14 +468,24 @@ async function ensureServerRunning() {
 }
 
 function findChromeExecutable() {
-  const candidates = [
-    process.env.CHROME_PATH,
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    resolve(process.env.LOCALAPPDATA || resolve(homedir(), 'AppData', 'Local'), 'Google', 'Chrome', 'Application', 'chrome.exe'),
-  ].filter(Boolean);
+  const candidates = [process.env.CHROME_PATH];
 
-  return candidates.find((candidate) => existsSync(candidate)) || null;
+  if (IS_MAC) {
+    candidates.push(
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      resolve(homedir(), 'Applications', 'Google Chrome.app', 'Contents', 'MacOS', 'Google Chrome'),
+    );
+  }
+
+  if (IS_WINDOWS) {
+    candidates.push(
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      resolve(process.env.LOCALAPPDATA || resolve(homedir(), 'AppData', 'Local'), 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    );
+  }
+
+  return candidates.filter(Boolean).find((candidate) => existsSync(candidate)) || null;
 }
 
 async function waitForExtensionConnected(timeoutMs = EXTENSION_BOOT_TIMEOUT_MS) {
@@ -506,13 +517,23 @@ async function bootstrapExtensionIfPossible() {
   return Boolean(payload?.extensionConnected);
 }
 
+async function getHealthAfterBootstrap() {
+  await ensureServerRunning();
+  let payload = await httpJson('GET', '/health');
+  if (!payload.extensionConnected) {
+    await bootstrapExtensionIfPossible();
+    payload = await httpJson('GET', '/health');
+  }
+  return payload;
+}
+
 function parseCommand(argv) {
   const [command, ...args] = argv;
   if (!command || command === '--help' || command === '-h' || command === 'help') {
     return { command: 'help' };
   }
 
-  if (command === 'server' || command === 'health' || command === 'list') {
+  if (command === 'server' || command === 'health' || command === 'doctor' || command === 'list') {
     return { command, payload: {} };
   }
 
@@ -565,6 +586,29 @@ function printHealth(payload) {
   return lines.join('\n');
 }
 
+function printDoctor(payload) {
+  const chromePath = findChromeExecutable();
+  const state = readPersistedExtensionState();
+  const lines = [
+    `Node: ${process.version}`,
+    `Platform: ${process.platform} (${process.arch})`,
+    `Bridge: http://${payload.host}:${payload.port}`,
+    `Runtime dir: ${RUNTIME_DIR}`,
+    `Log file: ${LOG_FILE}`,
+    `State file: ${STATE_FILE}`,
+    `Chrome path: ${chromePath || 'not found'}`,
+    `CHROME_PATH: ${process.env.CHROME_PATH || 'not set'}`,
+    `Extension connected: ${payload.extensionConnected ? 'yes' : 'no'}`,
+  ];
+  if (payload.extension.extensionId) lines.push(`Extension ID: ${payload.extension.extensionId}`);
+  if (state.extensionId && state.extensionId !== payload.extension.extensionId) {
+    lines.push(`Persisted extension ID: ${state.extensionId}`);
+  }
+  if (payload.extension.version) lines.push(`Extension version: ${payload.extension.version}`);
+  if (payload.extension.lastSeenAt) lines.push(`Last seen: ${new Date(payload.extension.lastSeenAt).toISOString()}`);
+  return lines.join('\n');
+}
+
 async function main() {
   const parsed = parseCommand(process.argv.slice(2));
 
@@ -579,9 +623,14 @@ async function main() {
   }
 
   if (parsed.command === 'health') {
-    await ensureServerRunning();
-    const payload = await httpJson('GET', '/health');
+    const payload = await getHealthAfterBootstrap();
     console.log(printHealth(payload));
+    return;
+  }
+
+  if (parsed.command === 'doctor') {
+    const payload = await getHealthAfterBootstrap();
+    console.log(printDoctor(payload));
     return;
   }
 
@@ -595,11 +644,7 @@ async function main() {
     return;
   }
 
-  await ensureServerRunning();
-  const health = await httpJson('GET', '/health');
-  if (!health.extensionConnected) {
-    await bootstrapExtensionIfPossible();
-  }
+  await getHealthAfterBootstrap();
   const response = await httpJson('POST', '/v1/commands/execute', parsed);
   if (response.result) console.log(response.result);
 }
