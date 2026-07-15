@@ -51,21 +51,8 @@ async function ensureTabExists(tabId) {
   }
 }
 
-async function activateTab(tabId) {
-  const tab = await ensureTabExists(tabId);
-  try {
-    if (Number.isInteger(tab.windowId)) {
-      await chrome.windows.update(tab.windowId, { focused: true });
-    }
-  } catch {}
-  try {
-    await chrome.tabs.update(tabId, { active: true });
-  } catch {}
-  return tab;
-}
-
 async function ensureAttached(tabId) {
-  await activateTab(tabId);
+  await ensureTabExists(tabId);
   const key = tabKey(tabId);
   if (attachedTabs.has(key)) return;
 
@@ -277,19 +264,60 @@ async function executeCommand(command, payload = {}) {
           const el = document.querySelector(${JSON.stringify(payload.selector)});
           if (!el) return { ok: false, error: 'Element not found: ' + ${JSON.stringify(payload.selector)} };
           el.scrollIntoView({ block: 'center' });
-          el.click();
-          return { ok: true, tag: el.tagName, text: el.textContent.trim().substring(0, 80) };
+          const rect = el.getBoundingClientRect();
+          return {
+            ok: true,
+            tag: el.tagName,
+            text: el.textContent.trim().substring(0, 80),
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+          };
         })()
       `;
       const raw = await evaluateInPage(payload.tabId, expression);
       const parsed = JSON.parse(raw);
       if (!parsed.ok) throw createError('EXECUTION_FAILED', parsed.error);
+      await safeSendCommand(payload.tabId, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: parsed.x, y: parsed.y, button: 'none' });
+      await safeSendCommand(payload.tabId, 'Input.dispatchMouseEvent', { type: 'mousePressed', x: parsed.x, y: parsed.y, button: 'left', clickCount: 1 });
+      await safeSendCommand(payload.tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: parsed.x, y: parsed.y, button: 'left', clickCount: 1 });
       return `Clicked <${parsed.tag}> "${parsed.text}"`;
     }
     case 'type':
       await ensureAttached(payload.tabId);
       await safeSendCommand(payload.tabId, 'Input.insertText', { text: payload.text || '' });
       return `Typed ${(payload.text || '').length} characters`;
+    case 'key': {
+      await ensureAttached(payload.tabId);
+      const key = payload.key || 'Enter';
+      if (key === 'Enter') {
+        await safeSendCommand(payload.tabId, 'Runtime.evaluate', {
+          expression: `(() => {
+            const textarea = document.querySelector("textarea.xterm-helper-textarea");
+            const target = textarea || document.activeElement || document.body;
+            if (textarea) textarea.focus();
+            const eventInit = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
+            for (const type of ["keydown", "keypress", "keyup"]) {
+              target.dispatchEvent(new KeyboardEvent(type, eventInit));
+            }
+            return true;
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+        return `Pressed ${key}`;
+      }
+      const keyInfo = key === 'Enter'
+        ? { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }
+        : {
+            key,
+            code: payload.code || (key.length === 1 && /[a-z]/i.test(key) ? `Key${key.toUpperCase()}` : key),
+            text: payload.text ?? (key.length === 1 ? key : undefined),
+            unmodifiedText: payload.text ?? (key.length === 1 ? key : undefined),
+          };
+      await safeSendCommand(payload.tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', ...keyInfo });
+      await safeSendCommand(payload.tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...keyInfo });
+      return `Pressed ${key}`;
+    }
     case 'nav': {
       await ensureAttached(payload.tabId);
       await safeSendCommand(payload.tabId, 'Page.enable');
